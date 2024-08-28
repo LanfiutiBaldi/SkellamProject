@@ -36,9 +36,9 @@ All the file .Rdata with the result of the analysis run in the paper:
 - *Adult-Ages 1981-2000.Rdata*;
 
 **Other Result folder**: it contains useful HMTL files to visualize several results:
+(if you want to see it as HTML, you need to download the files. Alternative, open the PDF version of them)
 - Age-Period Effects.HTML
 - All-Ages Results.HTML
 - Adult-Ages Results.HTML
-
 
 
