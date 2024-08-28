@@ -122,7 +122,7 @@ DoublePoisson_regression <- function(SIM){
 }
 
 BivariatePoisson_regression <- function(SIM){
-  source("Bivariate Poisson Package/bivpois pack.R")
+  source("Other Packages/Bivariate Poisson Package/bivpois pack.R")
   
   X <- make_standata(bf(diff ~ years + ages), data=SIM)$X #Design matrix
   
@@ -316,7 +316,7 @@ forecasting_yearEffects <- function(All_eff, h){
   year_eff <- All_eff$year_eff %>% 
     mutate(years = as.factor(as.numeric(as.character(years))))
   
-  source("MRW Package/mrw.R")
+  source("Other Packages/MRW Package/mrw.R")
   
   years <- as.numeric(levels(year_eff$years))
   
