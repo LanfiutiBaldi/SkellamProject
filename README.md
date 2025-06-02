@@ -3,7 +3,7 @@ Code, result and Data of Skellam Project
 
 This repository contains materials to partially reproduce the results of the working paper:
 
-*An age-period modeling of population gaps in mortality: the cases of cancer and cardiovascular diseases* **(Lanfiuti Baldi, Nigri, Shang)**
+*An age-period modeling of population gaps in mortality: the cases of cancer and cardiovascular diseases* **()**
 
 ## General information
 In this repository you can find all the codes, functions and data used to obtain the results of the paper. 
@@ -40,5 +40,8 @@ All the file .Rdata with the result of the analysis run in the paper:
 - Age-Period Effects.HTML
 - All-Ages Results.HTML
 - Adult-Ages Results.HTML
+
+
+
 
 
