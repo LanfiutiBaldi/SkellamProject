@@ -2,29 +2,25 @@
 
 library(tidyverse)
 
-load("Output/Output 1971-2000 Age 0+.RData")
-source("Functions.R")
+load("Output/All-Ages 1971-2000.RData")
 
 accuracy_heatmap(check_for, "RMSE")
 plot_agesfitting(check_tot%>% 
                    filter(Year>1970))
 
-load("Output/Output 1981-2000 Age 0+.RData")
-source("Functions.R")
+load("Output/All-Ages 1981-2000.RData")
 
 accuracy_heatmap(check_for, "RMSE")
 plot_agesfitting(check_tot%>% 
                    filter(Year>1980))
 
-load("Output/Output 1971-2000 Age 40+.RData")
-source("Functions.R")
+load("Output/Adult-Ages 1971-2000.RData")
 
 accuracy_heatmap(check_for, "RMSE")
 plot_agesfitting(check_tot %>% 
                    filter(Year>1970))
 
-load("Output/Output 1981-2000 Age 40+.RData")
-source("Functions.R")
+load("Output/Adult-Ages 1981-2000.RData")
 
 accuracy_heatmap(check_for, "RMSE")
 plot_agesfitting(check_tot%>% 
