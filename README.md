@@ -42,6 +42,3 @@ All the file .Rdata with the result of the analysis run in the paper:
 - Adult-Ages Results.HTML
 
 
-
-
-

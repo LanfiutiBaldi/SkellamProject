@@ -25,7 +25,7 @@ load("Data/ready_to_use_Italy.RData")
 #load("Data/ready_to_use_USA.RData")
 
 dt <- ITA %>%
-  filter(Year %in% 1961:2015) %>% 
+  filter(Year %in% 1961:2015) %>%
   grouping_01ages() 
 
 plot_initial(dt)
@@ -39,16 +39,21 @@ forec_year <- (max(baseline)+1):(max(baseline)+h)
 nages <- nlevels(SIM$ages)
 
 dt_base <- dt %>% 
-  filter(Year %in% baseline)
+  filter(Year %in% baseline) 
 
 SIM_base <- prepare_data(dt_base)
 
-## WARNING: it might take a while (~ 60 min)
-sk_reg_base <- Skellam_regression(SIM_base)
+##RUN ALL THE MODELS
+#Skellam regression (WARNING: it might take a while (~ 60 min))
+sk_reg_base <- Skellam_regression(SIM)
 
-dp_reg_base <- DoublePoisson_regression(SIM_base)
-bp_reg_base <- BivariatePoisson_regression(SIM_base)
+#Double Poisson regression
+dp_reg_base <- DoublePoisson_regression(SIM)
 
+#Bivariate Poisson regression 
+bp_reg_base <- BivariatePoisson_regression(SIM)
+
+##GET AGE-PERIOD EFFECTS
 sk_eff_base <- get_effects(sk_reg_base, SIM_base)
 dp_eff_base <- get_effects(dp_reg_base, SIM_base)
 bp_eff_base <- get_effects(bp_reg_base, SIM_base)
@@ -61,7 +66,8 @@ plot_eff(All_eff_base)
 #Forecasting Period Effects using Multivariate Random Walk with Drift
 year_eff_forec <- forecasting_yearEffects(All_eff_base, h)
 
-SIM_for <- data.frame("years" = as.factor(rep(forec_year, each=nages)),                            "ages" = as.factor(rep(unique(SIM_base$ages), h)),
+SIM_for <- data.frame("years" = as.factor(rep(forec_year, each=nages)),
+                      "ages" = as.factor(rep(unique(SIM_base$ages), h)),
                       "diff" = 0) 
 
 SIM_tot <- rbind(SIM_base[,c(1,2,5)], SIM_for)
@@ -71,6 +77,11 @@ diff_inout <- forecasting_differences(SIM_tot,
                                       All_eff_base, 
                                       year_eff_forec, 
                                       h, nages)
+
+#BIC, AIC and AICc
+InfoCriterion <- rbind("Skellam"=data.frame(sk_reg_base$Metrics),
+                       "Double Poisson"=data.frame(dp_reg_base$Metrics),
+                       "Bivariate Poisson"=data.frame(bp_reg_base$Metrics))
 
 #Check the estimation accuracy in the in-sample part 
 diff_in <- diff_inout$in_AND_out_of_Sample %>% 
@@ -102,13 +113,12 @@ accuracymetrics_for <- metrics(check_for)
 accuracy_heatmap(check_for, "RMSE")
 
 #In-sample and out-of-sample fitting for specific ages
-
 check_tot <- dt %>% 
   select(Year, Age, "ObservedGap"=Diff) %>% 
   ungroup() %>% 
   left_join(diff_inout$in_AND_out_of_Sample)
 
-plot_agesfitting(check_tot)
+#Diebold-Mariano Test Skellam vs Double and Bivariate Poisson
 
-
+DM_result <- DM_test(check_for)
 

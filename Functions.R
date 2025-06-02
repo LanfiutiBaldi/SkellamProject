@@ -31,7 +31,9 @@ prepare_data <- function(dt){
                     "diff"=dt$Diff)
 }
 
-Skellam_regression <- function(SIM){
+Skellam_regression <- function(SIM, init.values=NULL){
+  set.seed(4444)
+
   X <- make_standata(bf(diff ~ years + ages), data=SIM)$X #Design matrix
   
   mpf <- 2^5
@@ -73,7 +75,9 @@ Skellam_regression <- function(SIM){
   mod <- stats::nlm(skelreg, mod$estimate, 
                     iterlim = 5000)
   
-  mod <- stats::optim(mod$estimate, skelreg_opt, 
+  if(is.null(init.values)){init.values <-  mod$estimate}
+  
+  mod <- stats::optim(init.values, skelreg_opt, 
                       hessian = FALSE, 
                       control = list(maxit = 5000, trace = 3),
                       method = "BFGS")
@@ -83,22 +87,41 @@ Skellam_regression <- function(SIM){
   par1_sk <- b1
   par2_sk <- b2
   
+  dim(X)
+  length(b1)
+  
   est1_sk <- exp(X %*% par1_sk)[,1]
   est2_sk <- exp(X %*% par2_sk)[,1]
   
   est_diff_sk <- est1_sk-est2_sk
+  
+  #AIC e BIC
+  logLik_sk <- -mod$value
+  k <- length(mod$par) # Number of parameters
+  n <- length(y) # Number of observations
+  
+  AIC_sk <- 2 * k - 2 * logLik_sk
+  BIC_sk <- k * log(n) - 2 * logLik_sk
+  AICc_sk <- AIC_sk + (2 * k * (k + 1)) / (n - k - 1)
   
   sk_reg <- list(
     "Parameters" = list("Par1"=as.numeric(par1_sk),
                         "Par2"=as.numeric(par2_sk)),
     "Estimates" = data.frame("Pop1"=est1_sk,
                               "Pop2"=est2_sk,
-                              "Diff"=est_diff_sk))
+                              "Diff"=est_diff_sk),
+    "Metrics" = data.frame("BIC"=BIC_sk,
+                           "AIC"=AIC_sk,
+                           "AICc"=AICc_sk),
+    "logLik"= logLik_sk)
+  
+  
   return(sk_reg)
   
 }
 
 DoublePoisson_regression <- function(SIM){
+
   X <- make_standata(bf(diff ~ years + ages), data=SIM)$X #Design matrix
   
   fit1_pois <- glm(Deaths1 ~ years + ages, family="poisson", data=SIM)
@@ -112,13 +135,34 @@ DoublePoisson_regression <- function(SIM){
   
   est_diff_poi <- est1_pois-est2_pois
   
+  logLik_fit1 <- as.numeric(logLik(fit1_pois)) 
+  logLik_fit2 <- as.numeric(logLik(fit2_pois)) 
+  
+  logLik_total <- logLik_fit1 + logLik_fit2  
+  
+  k_fit1 <- length(par1_pois)  
+  k_fit2 <- length(par2_pois) 
+  k_total <- k_fit1 + k_fit2  
+  
+  n <- nrow(SIM)  
+  
+  # Calcolo di AIC e BIC
+  AIC_pois <- 2 * k_total - 2 * logLik_total
+  BIC_pois <- k_total * log(n) - 2 * logLik_total
+  AICc_pois <- AIC_pois + (2 * k_total * (k_total + 1)) / (n - k_total - 1)
+  
   dp_reg <- list(
     "Parameters" = list("Par1"=par1_pois,
                         "Par2"=par2_pois),
     "Estimates" = data.frame("Pop1"=est1_pois,
                               "Pop2"=est2_pois,
-                              "Diff"=est_diff_poi))
-    return(dp_reg)
+                              "Diff"=est_diff_poi),
+    "Metrics" = data.frame("BIC"=BIC_pois,
+                           "AIC"=AIC_pois,
+                           "AICc"=AICc_pois),
+    "logLik"= logLik_total)
+
+  return(dp_reg)
 }
 
 BivariatePoisson_regression <- function(SIM){
@@ -155,6 +199,12 @@ BivariatePoisson_regression <- function(SIM){
   par2_bp <- par2_bp[order(par2_bp$par),]$coef
   
   est_diff_bp <- bpreg$fitted.values[,1]-bpreg$fitted.values[,2]
+  
+  BIC_bp <- bpreg$BIC[2]
+  AIC_bp <- bpreg$AIC[2]
+  k <- length(bpreg$coefficients) 
+  n <- nrow(X) 
+  AICc_bp <- AIC_bp + (2 * k * (k + 1)) / (n - k - 1)
 
   bp_reg <- list(
     "Parameters" = list("Par1"=par1_bp,
@@ -162,8 +212,13 @@ BivariatePoisson_regression <- function(SIM){
                         "Par3"=par3_bp),
     "Estimates" = data.frame("Pop1"=bpreg$fitted.values[,1],
                               "Pop2"=bpreg$fitted.values[,2],
-                              "Diff"=est_diff_bp))
+                              "Diff"=est_diff_bp),
+    "Metrics" = data.frame("BIC"=BIC_bp,
+                           "AIC"=AIC_bp,
+                           "AICc"=AICc_bp),
+    "logLik"= max(bpreg$loglikelihood))
   return(bp_reg)
+  
   
   
 }
@@ -528,9 +583,9 @@ accuracy_heatmap <- function(check_for, metric){
               DoublePoisson = rmse(sum(ObservedGap), sum(DoublePoisson)),
               BivariatePoisson = rmse(sum(ObservedGap),sum(BivariatePoisson))) %>%
     pivot_longer(cols = 3:5, names_to = "Model", values_to = "RMSE") %>% 
-    mutate(Model = factor(Model, levels=c("DoublePoisson", 
-                                          "BivariatePoisson",
-                                          "Skellam")))
+    mutate(Model = factor(Model, levels=c("Skellam", 
+                                          "DoublePoisson", 
+                                          "BivariatePoisson")))
     
     heat_map <- check_for_by_age %>% 
       mutate(Year = as.factor(Year)) %>% 
@@ -614,6 +669,72 @@ accuracy_heatmap <- function(check_for, metric){
     
     return(heat_map)
   }
+  
+}
+
+DM_test <- function(check_for){
+  require(forecast)
+  
+  diff_for <- check_for %>% 
+    group_by(Year, Age) %>% 
+    reframe(Skellam = ObservedGap-Skellam,
+            DoublePoisson = ObservedGap-DoublePoisson,
+            BivariatePoisson = ObservedGap-BivariatePoisson) %>% 
+    ungroup()
+  
+  ages <- unique(diff_for$Age)
+  
+  DM_pvalue <- c()
+  DM_stat <- c()
+  
+  alpha <- 0.05
+  
+  for(age in ages) {
+    diff_for_age <- diff_for %>% 
+      filter(Age == age)
+    
+    Sk_DP <- dm.test(diff_for_age$Skellam, diff_for_age$DoublePoisson)$p.value
+    Sk_BP <- dm.test(diff_for_age$Skellam, diff_for_age$BivariatePoisson)$p.value
+    
+    Sk_DP_stat <- dm.test(diff_for_age$Skellam, diff_for_age$DoublePoisson)$statistic
+    Sk_BP_stat <- dm.test(diff_for_age$Skellam, diff_for_age$BivariatePoisson)$statistic
+    
+    DM_pvalue_age <- data.frame("Age" = age, 
+                                "DoublePoisson" = round(Sk_DP, 3),
+                                "BivariatePoisson" = round(Sk_BP, 3))
+
+    DM_stat_age <- data.frame("Age" = age, 
+                              "DoublePoisson" = round(Sk_DP_stat,3), 
+                              "BivariatePoisson" = round(Sk_BP_stat,3))
+    
+    DM_pvalue <- rbind(DM_pvalue, DM_pvalue_age)
+    
+    DM_stat <- rbind(DM_stat, DM_stat_age)
+  }
+  
+  DM <- rbind(data.frame(DM_pvalue, "Type"="p.value"),
+              data.frame(DM_stat, "Type"="DM.stat")) 
+  
+  DM_pvalue_models <- DM %>% 
+    filter(Type == "p.value") %>% 
+    select(-Type) %>% 
+    pivot_longer(cols = 2:3, names_to = "Model", values_to = "p.value")
+  
+  DM_stat_models <- DM %>% 
+    filter(Type == "DM.stat") %>% 
+    select(-Type) %>% 
+    pivot_longer(cols = 2:3, names_to = "Model", values_to = "DM_stat")
+  
+  DM_output <- DM_stat_models %>% 
+    left_join(DM_pvalue_models, by = c("Age", "Model")) %>% 
+    mutate("Significance" = case_when(
+      p.value < 0.001 ~ "***",
+      p.value < 0.01 ~ "**",
+      p.value < 0.05 ~ "*",
+      .default = "")) %>% 
+    select(Age, Model, DM_stat, p.value, Significance)
+  
+  return(DM_output)
   
 }
 
